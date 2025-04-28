@@ -19,6 +19,8 @@ AMainPlayer::AMainPlayer()
  	// Set this character to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
 
+	bUseControllerRotationYaw = false;  // 컨트롤러 회전 무시
+	GetCharacterMovement()->bOrientRotationToMovement = true;
 }
 
 // Called when the game starts or when spawned
@@ -62,26 +64,35 @@ void AMainPlayer::SetupPlayerInputComponent(UInputComponent* PlayerInputComponen
 	}
 }
 
-void AMainPlayer::Input_Move(const FInputActionValue& MoveVal)
+void AMainPlayer::Input_Move(const FInputActionValue& Value)
 {
-	//입력 값을 FVector 형태로
-	UE_LOG(LogTemp, Warning, TEXT("Input_Move"));
-	const FVector _CurrentValue = MoveVal.Get<FVector>();
-	AddMovementInput(FTransform(GetControlRotation()).TransformVector(_CurrentValue));
+	// 입력 값
+	const FVector2D MovementVector = Value.Get<FVector2D>();
+
+	// 캐릭터 로컬 방향 기준으로 변환
+	const FRotator Rotation = GetControlRotation();
+	const FRotator YawRotation = FRotator(0, Rotation.Yaw, 0);
+
+	// 행렬을 통해 X, Y축
+	const FRotationMatrix RotationMatrix(YawRotation);
+	const FVector ForwardLocalVector = RotationMatrix.GetUnitAxis(EAxis::X);
+	const FVector RightLocalVector = RotationMatrix.GetUnitAxis(EAxis::Y);
+
+	// 이동
+	AddMovementInput(ForwardLocalVector, MovementVector.Y);
+	AddMovementInput(RightLocalVector, MovementVector.X);
 }
 
-void AMainPlayer::Input_Look(const FInputActionValue& LookVal)
+void AMainPlayer::Input_Look(const FInputActionValue& Value)
 {
-	UE_LOG(LogTemp, Warning, TEXT("Input_Look"));
-	const float _CurrentValue = LookVal.Get<float>() * -1;
-	AddControllerPitchInput(_CurrentValue);
+	float MouseLookValue = Value.Get<float>() * -1;
+	AddControllerPitchInput(MouseLookValue);
 }
 
-void AMainPlayer::Input_Turn(const FInputActionValue& TurnVal)
+void AMainPlayer::Input_Turn(const FInputActionValue& Value)
 {
-	UE_LOG(LogTemp, Warning, TEXT("Input_Turn"));
-	const float v = TurnVal.Get<float>();
-	AddControllerYawInput(v);
+	const float MouseTurnValue = Value.Get<float>();
+	AddControllerYawInput(MouseTurnValue);
 }
 
 // 점프
